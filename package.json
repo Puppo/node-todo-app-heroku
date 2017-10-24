@@ -21,9 +21,9 @@
     "mongoose": "^4.12.4"
   },
   "devDependencies": {
-    "expect.js": "^0.3.1",
     "mocha": "^4.0.1",
     "nodemon": "^1.12.1",
+    "should": "^13.1.2",
     "supertest": "^3.0.0"
   }
 }
