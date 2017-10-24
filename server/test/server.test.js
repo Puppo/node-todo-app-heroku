@@ -5,20 +5,12 @@ const {ObjectID} = require('mongodb');
 
 const {app} = require('../server');
 const {Todo} = require('../models/todo');
+const {User} = require('../models/user');
 
-const todos = [{
-  _id: new ObjectID(),
-  text: 'First test todo'
-},{
-  _id: new ObjectID(),
-  text: 'Second test todo'
-}]
+const {todos, populateTodos, users, populateUsers} = require('./seed/seed');
 
-beforeEach(done => {
-  Todo.remove({})
-  .then(res => Todo.insertMany(todos))
-  .then(res => done());
-})
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe('POST /todos', () => {
   it('should create a new todo', done => {
@@ -195,6 +187,79 @@ describe('PATCH /todos/:id', () => {
     request(app)
     .patch(`/todos/123abc`)
     .expect(404)
+    .end(done);
+  });
+});
+
+describe('GET /user/me', () => {
+  it('should return user if authenticated', done => {
+    request(app)
+    .get('/users/me')
+    .set('x-auth', users[0].tokens[0].token)
+    .send()
+    .expect(200)
+    .expect(res => {
+      should(res.body._id).be.equal(users[0]._id.toHexString());
+      should(res.body.email).be.equal(users[0].email);
+    })
+    .end(done);
+  });
+
+  it('should return 401 if not authenticated', done => {
+    request(app)
+    .get('/users/me')
+    .send()
+    .expect(401)
+    .end(done);
+  });
+
+});
+
+describe('POST /users', () => {
+  it('should create user', done => {
+    const email = 'example@axample.com'
+        , password = '123mnb!';
+    request(app)
+    .post('/users')
+    .send({email, password})
+    .expect(200)
+    .expect(res => {
+      should(res.headers['x-auth']).not.null();
+      should(res.body._id).not.null();
+      should(res.body.email).be.equal(email);
+    })
+    .end((err) => {
+      if (!!err) {
+        return done(err);
+      }
+
+      User.findOne({email})
+      .then(user => {
+        should(user).not.null();
+        should(user.password).not.be.equal(password);
+        done();
+      })
+      .catch(e => done(e));
+    });
+  });
+
+  it('should return validation error if request invalid', done => {
+    const email = 'example@axample.com'
+    , password = '123!';
+    request(app)
+    .post('/users')
+    .send({email, password})
+    .expect(400)
+    .end(done);
+  });
+
+  it('should not create user if email in use', done => {
+    const email = users[0].email
+    , password = '123mnb!';
+    request(app)
+    .post('/users')
+    .send({email, password})
+    .expect(400)
     .end(done);
   });
 });
