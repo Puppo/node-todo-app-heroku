@@ -263,3 +263,56 @@ describe('POST /users', () => {
     .end(done);
   });
 });
+
+describe('POST /users/login', () => {
+  it('should login user and return auth token', done => {
+    const email = users[1].email
+        , password = users[1].password;
+
+    request(app)
+    .post('/users/login')
+    .send({email, password})
+    .expect(200)
+    .expect(res => {
+      should(res.headers['x-auth']).not.null();
+    })
+    .end((err, res) => {
+      if (!err) {
+        return done(err);
+      }
+
+      User.findById(users[1]._id)
+      .then(user => {
+        should(user.tokens[0]).containEql({
+          access: 'auth',
+          token: res.headers['x-auth']
+        });
+        done();
+      })
+    });
+  });
+
+  it('should reject invalid login', done => {
+    const email = users[1].email
+    , password = '123abc!';
+
+    request(app)
+    .post('/users/login')
+    .send({email, password})
+    .expect(400)
+    .expect(res => {
+      should(res.headers['x-auth']).null();
+    })
+    .end((err, res) => {
+      if (!err) {
+        return done(err);
+      }
+
+      User.findById(users[1]._id)
+      .then(user => {
+        should(user.tokens.length).equal(0);
+        done();
+      });
+    });
+  });
+});
