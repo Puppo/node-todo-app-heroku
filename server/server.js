@@ -103,7 +103,16 @@ app.post(`/users`, (req, res) => {
 
 app.get('/users/me', authenticated, (req, res) => {
   return res.send(req.user);
-})
+});
+
+app.post('/users/login', (req, res) => {
+  const body = _.pick(req.body, ['email', 'password']);
+
+  User.findByCredential(body.email, body.password)
+  .then(user => user.generateAuthToken()
+                    .then(token => res.header('x-auth', token).send(user)))
+  .catch(e => res.status(400).send());
+});
 
 app.listen(PORT, () => {
   console.log(`app run on port ${PORT}`);
