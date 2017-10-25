@@ -42,14 +42,19 @@ UserSchema.methods.toJSON = function() {
   return _.pick(userObject, ['_id', 'email']);
 }
 
-UserSchema.methods.generateAuthToken = function () {
+UserSchema.methods.generateAuthToken = async function () {
   const user = this;
   const access = 'auth';
   const token = jwt.sign({_id: user._id.toHexString()}, process.env.JWT_SECRET).toString();
 
   user.tokens.push({access, token});
 
-  return user.save().then(() => token);
+  try {
+    await user.save();
+    return token;
+  } catch(e) {
+    throw e;
+  }
 };
 
 UserSchema.methods.removeToken = function(token) {
@@ -79,24 +84,19 @@ UserSchema.statics.findByToken = function(token) {
   });
 };
 
-UserSchema.statics.findByCredential = function(email, password) {
+UserSchema.statics.findByCredential = async function(email, password) {
   const User = this;
 
-  return User.findOne({email})
-  .then(user => {
-    if (!user) {
-      return Promise.reject();
-    }
+  const user = await User.findOne({email});
+  if (!user) {
+    throw new Error('login fail');
+  }
 
-    return bcrypt.compare(password, user.password)
-    .then(res => {
-      if (!res) {
-        return Promise.reject();
-      }
-      return user;
-    });
-  });
-
+  const res = await bcrypt.compare(password, user.password)
+  if (!res) {
+    throw new Error('login fail');
+  }
+  return user;
 }
 
 UserSchema.pre('save', function(next) {
